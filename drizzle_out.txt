@@ -1,0 +1,59 @@
+﻿No config path provided, using default 'drizzle.config.ts'
+Reading config file 'D:\project final test 1\drizzle.config.ts'
+Using 'pg' driver for database querying
+[Γú╖] Pulling schema from database...
+node.exe : error: Tenant 
+or user not found
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (e  
+  rror: Tenant or user    
+ not found:String) [],    
+ RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+    at D:\project final 
+test 1\node_modules\pg-poo
+l\index.js:45:11
+    at process.processTick
+sAndRejections (node:inter
+nal/process/task_queues:10
+4:5)
+    at async Object.query 
+(D:\project final test 1\n
+ode_modules\drizzle-kit\bi
+n.cjs:80622:26)
+    at async 
+fromDatabase2 (D:\project 
+final test 1\node_modules\
+drizzle-kit\bin.cjs:19276:
+25) {
+  length: 52,
+  severity: 'FATAL',
+  code: 'XX000',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: 
+undefined,
+  internalQuery: 
+undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+  line: undefined,
+  routine: undefined
+}
