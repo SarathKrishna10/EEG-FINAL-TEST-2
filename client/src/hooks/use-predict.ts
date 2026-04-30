@@ -4,6 +4,9 @@ import axios, { AxiosError } from "axios";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
+// Resolve API base URL from environment or fall back to the local Express server
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 type PredictInput = z.infer<typeof api.predict.input>;
 type PredictResponse = z.infer<typeof api.predict.responses[200]>;
 
@@ -25,7 +28,7 @@ export function usePredict() {
         mutationFn: async (input: PredictInput) => {
             try {
                 const validated = api.predict.input.parse(input);
-                const res = await axios.post("/api/predict", validated);
+                const res = await axios.post(`${API_BASE}/api/predict`, validated);
                 return api.predict.responses[200].parse(res.data);
             } catch (error) {
                 if (error instanceof AxiosError) {

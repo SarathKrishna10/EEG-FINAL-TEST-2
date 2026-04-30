@@ -5,13 +5,16 @@ import { z } from "zod";
 import axios, { AxiosError } from "axios";
 import { useToast } from "@/hooks/use-toast";
 
+// Resolve API base URL from environment or fall back to the local Express server
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 // Fetch ESP32 Status
 export function useEsp32Status() {
   return useQuery({
     queryKey: [api.esp32.status.path],
     queryFn: async () => {
       try {
-        const res = await axios.get(api.esp32.status.path);
+        const res = await axios.get(`${API_BASE}${api.esp32.status.path}`);
         return api.esp32.status.responses[200].parse(res.data);
       } catch (error) {
         console.error("ESP32 status check failed", error);
@@ -30,7 +33,7 @@ export function useStartSession() {
     mutationFn: async (patientName: string) => {
       try {
         const payload = { patientName: patientName };
-        const res = await axios.post("/api/session/start", payload);
+        const res = await axios.post(`${API_BASE}/api/session/start`, payload);
         return res.data;
       } catch (error) {
         throw new Error("Failed to start session. Ensure ESP32 is connected.");
@@ -66,7 +69,7 @@ export function useEegStream(enabled: boolean) {
       return;
     }
 
-    const eventSource = new EventSource("/api/eeg/stream");
+    const eventSource = new EventSource(`${API_BASE}/api/eeg/stream`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -100,7 +103,7 @@ export function useDiagnosisStatus() {
     queryKey: ['diagnosisStatus_direct'],
     queryFn: async () => {
       try {
-        const res = await axios.get("/api/diagnosis/status");
+        const res = await axios.get(`${API_BASE}/api/diagnosis/status`);
         return res.data;
       } catch (error) {
         console.error("Diagnosis status retrieval failed", error);
@@ -118,7 +121,7 @@ export function usePatientLookup(email: string) {
     queryFn: async () => {
       if (!email) return null;
       try {
-        const res = await axios.get(`${api.patient.lookup.path}?email=${encodeURIComponent(email)}`);
+        const res = await axios.get(`${API_BASE}${api.patient.lookup.path}?email=${encodeURIComponent(email)}`);
         return api.patient.lookup.responses[200].parse(res.data);
       } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 404) {
@@ -139,7 +142,7 @@ export function useHistory(userId?: string) {
     queryFn: async () => {
       if (!userId) return [];
       try {
-        const res = await axios.get(`${api.history.path}?userId=${userId}`);
+        const res = await axios.get(`${API_BASE}${api.history.path}?userId=${userId}`);
         const data = res.data;
         return Array.isArray(data) ? data : (data?.data || []);
       } catch (error) {
@@ -158,7 +161,7 @@ export function useAnalytics(userId?: string) {
     queryFn: async () => {
       if (!userId) return [];
       try {
-        const res = await axios.get(`${api.analytics.path}?userId=${userId}`);
+        const res = await axios.get(`${API_BASE}${api.analytics.path}?userId=${userId}`);
         const data = res.data;
         return Array.isArray(data) ? data : (data?.data || []);
       } catch (error) {

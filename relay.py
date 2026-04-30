@@ -1,4 +1,5 @@
 import asyncio
+import os
 import socket
 import httpx
 from fastapi import FastAPI, Request
@@ -14,9 +15,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-AI_SERVICE_URL = "http://127.0.0.1:9000"
+# Read ports from environment variables so cloud platforms (Render, Railway, etc.)
+# can inject their own PORT at runtime.
+_AI_HTTP_PORT  = int(os.environ.get("AI_SERVICE_PORT", "9000"))
+_AI_TCP_PORT   = int(os.environ.get("AI_TCP_PORT", "9999"))
+
+AI_SERVICE_URL = f"http://127.0.0.1:{_AI_HTTP_PORT}"
 AI_TCP_HOST    = "127.0.0.1"
-AI_TCP_PORT    = 9999
+AI_TCP_PORT    = _AI_TCP_PORT
 
 # Persistent TCP connection to AI service
 tcp_sock = None
@@ -124,10 +130,11 @@ async def shutdown():
         tcp_sock = None
 
 if __name__ == "__main__":
+    _relay_port = int(os.environ.get("PORT", "8888"))
     print("=" * 55)
     print("  NeuroGuard Local Relay v2")
-    print("  ESP32  → HTTP POST :8888/eeg")
-    print("  Relay  → TCP forward to AI service :9999")
-    print("  Proxy  → HTTP :8888/proxy/* → AI service :9000")
+    print(f"  ESP32  → HTTP POST :{_relay_port}/eeg")
+    print(f"  Relay  → TCP forward to AI service :{AI_TCP_PORT}")
+    print(f"  Proxy  → HTTP :{_relay_port}/proxy/* → AI service port {_AI_HTTP_PORT}")
     print("=" * 55)
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    uvicorn.run(app, host="0.0.0.0", port=_relay_port)

@@ -2,6 +2,7 @@ import { config } from "dotenv";
 config(); // Load .env before anything else
 
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -14,6 +15,16 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+// Allow requests from the deployed Vercel frontend. Set CORS_ORIGIN in your
+// hosting environment (e.g. https://<project>.vercel.app).
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    credentials: true,
+  })
+);
 
 app.use(
   express.json({
