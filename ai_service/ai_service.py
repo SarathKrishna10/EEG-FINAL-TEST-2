@@ -109,6 +109,33 @@ last_inference_ts  = 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# EEG Sample Processing
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def process_eeg_line(line: str) -> bool:
+    """
+    Normalize a raw EEG sample string and push it into the unified buffer.
+
+    Expected format: a single numeric string representing a raw ADC value
+    (e.g. "2150").  The value is normalized to the range ±2.0 to match the
+    range used during model training:  val = (raw - 2048) / 1000.0
+
+    Returns True if the sample was accepted, False if the line was not a
+    valid number.
+    """
+    line = line.strip()
+    if not line:
+        return False
+    try:
+        val = (float(line) - 2048) / 1000.0
+        with buffer_lock:
+            unified_buffer.append((val, val))
+        return True
+    except ValueError:
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ESP32 Socket Server  (port 9999)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -196,18 +223,9 @@ class ESP32SocketServer:
                 leftover = lines[-1].encode('utf-8')
                 complete_lines = lines[:-1]
 
-                with buffer_lock:
-                    for line in complete_lines:
-                        line = line.strip()
-                        if not line: continue
-
-                        try:
-                            # Bug 9 fix: normalize with /1000.0 (matches model training, range ~±2.0)
-                            val = (float(line) - 2048) / 1000.0
-                            print(f"Sample Received: {val}")
-                            unified_buffer.append((val, val))
-                        except ValueError:
-                            pass
+                for line in complete_lines:
+                    if process_eeg_line(line):
+                        pass  # accepted; buffer updated inside process_eeg_line
 
         except Exception as e:
             log.warning(f"[ESP32] Stream handler error: {e}")
@@ -529,6 +547,30 @@ async def eeg_stream():
             await asyncio.sleep(0.08) # ~12Hz updates
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/eeg/ingest", tags=["Streaming"])
+async def eeg_ingest(request: Request):
+    """
+    HTTP ingest endpoint for the cloud relay.
+
+    The relay POSTs raw EEG sample lines here instead of forwarding over TCP
+    (TCP does not work across separate cloud containers).  The request body
+    must be plain text — one or more numeric sample values separated by
+    newlines, matching the ESP32 serial output format.
+
+    Each line is passed to process_eeg_line() which normalises the value and
+    appends it to the shared unified_buffer exactly as the legacy TCP path did.
+    """
+    body = await request.body()
+    text = body.decode("utf-8", errors="ignore")
+    lines = text.strip().split("\n")
+    accepted = 0
+    for line in lines:
+        if process_eeg_line(line):
+            accepted += 1
+    return {"ok": True, "accepted": accepted}
+
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 def health_check():
