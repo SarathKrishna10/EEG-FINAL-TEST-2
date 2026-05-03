@@ -6,7 +6,6 @@ import { z } from "zod";
 import axios from "axios";
 
 // ─── Service URLs ─────────────────────────────────────────────────────────────
-// Python AI microservice (port 9000) — handles predictions AND esp32 socket server
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:9000";
 
 export async function registerRoutes(
@@ -64,19 +63,17 @@ export async function registerRoutes(
     }
   });
 
-  // ─── ESP32 Status (proxied through Python AI service) ─────────────────────
+  // ─── ESP32 Status ─────────────────────────────────────────────────────────
   app.get(api.esp32.status.path, async (req, res) => {
     try {
-      // Ask the Python AI service whether the ESP32 socket server is running
       const response = await axios.get(`${AI_SERVICE_URL}/esp32/status`, { timeout: 2000 });
       res.status(200).json(response.data);
     } catch (err) {
-      // Python service offline → treat ESP32 as disconnected
       res.status(200).json({ connected: false });
     }
   });
 
-  // ─── Start Session (proxied through Python AI service) ────────────────────
+  // ─── Start Session ────────────────────────────────────────────────────────
   app.post(api.session.start.path, async (req, res) => {
     try {
       const input = api.session.start.input.parse(req.body);
@@ -99,7 +96,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── AI Predict (new endpoint — proxies to Python service) ───────────────
+  // ─── AI Predict ───────────────────────────────────────────────────────────
   app.post(api.predict.path, async (req, res) => {
     try {
       const input = api.predict.input.parse(req.body);
@@ -132,7 +129,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── NEW: Diagnosis Status Proxy ─────────────────────────────────────────
+  // ─── Diagnosis Status ─────────────────────────────────────────────────────
   app.get(api.diagnosisStatus.path, async (req, res) => {
     try {
       const response = await axios.get(`${AI_SERVICE_URL}/diagnosis/status`, { timeout: 2000 });
@@ -142,7 +139,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── NEW: Report Download Proxy ──────────────────────────────────────────
+  // ─── Report Download ──────────────────────────────────────────────────────
   app.get(api.reportDownload.path, async (req, res) => {
     try {
       const patientName = (req.query.patientName as string) || "Patient";
@@ -151,7 +148,7 @@ export async function registerRoutes(
         responseType: 'arraybuffer',
         timeout: 10000
       });
-      
+
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename=NeuroGuard_Report_${patientName}.zip`);
       res.send(Buffer.from(response.data));
@@ -160,7 +157,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── NEW: History & Analytics Proxy ──────────────────────────────────────
+  // ─── History ──────────────────────────────────────────────────────────────
   app.get(api.history.path, async (req, res) => {
     try {
       const userId = req.query.userId as string;
@@ -177,6 +174,7 @@ export async function registerRoutes(
     }
   });
 
+  // ─── Analytics ────────────────────────────────────────────────────────────
   app.get(api.analytics.path, async (req, res) => {
     try {
       const userId = req.query.userId as string;
@@ -193,7 +191,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── EEG Real-Time Stream Proxy ──────────────────────────────────────────
+  // ─── EEG Stream ───────────────────────────────────────────────────────────
   app.get(api.eegStream.path, async (req, res) => {
     try {
       const response = await axios.get(`${AI_SERVICE_URL}/eeg/stream`, {
@@ -208,7 +206,7 @@ export async function registerRoutes(
     }
   });
 
-  // ─── AI Service Health (optional passthrough for the dashboard) ──────────
+  // ─── AI Health ────────────────────────────────────────────────────────────
   app.get(api.aiHealth.path, async (req, res) => {
     try {
       const response = await axios.get(`${AI_SERVICE_URL}/health`, { timeout: 3000 });
@@ -220,6 +218,40 @@ export async function registerRoutes(
         esp32_server_running: false,
       });
     }
+  });
+
+  // ─── ESP32 EEG Ingest (direct from hardware over HTTPS) ──────────────────
+  // ESP32 posts plain text "fp1,fp2\n" batches directly to this endpoint
+  // Node.js forwards to Python AI service which fills the EEG buffer
+  app.post("/eeg/ingest", (req, res) => {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+
+    req.on("end", async () => {
+      try {
+        await axios.post(
+          `${AI_SERVICE_URL}/eeg/ingest`,
+          body,
+          {
+            headers: { "Content-Type": "text/plain" },
+            timeout: 3000,
+          }
+        );
+        res.json({ ok: true, samples: body.trim().split('\n').length });
+      } catch (err) {
+        // Don't fail ESP32 — just log and return ok
+        console.error("[EEG INGEST] AI service error:", err);
+        res.json({ ok: false });
+      }
+    });
+
+    req.on("error", (err) => {
+      console.error("[EEG INGEST] Request error:", err);
+      res.status(500).json({ ok: false });
+    });
   });
 
   return httpServer;
