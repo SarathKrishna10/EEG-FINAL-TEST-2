@@ -77,7 +77,7 @@ log = logging.getLogger("ai_service")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 MODEL_PATH   = os.path.join(os.path.dirname(__file__), "kaggle_drcam_model.h5")
-SERVICE_PORT = int(os.getenv("AI_SERVICE_PORT", "9000"))
+SERVICE_PORT = int(os.getenv("PORT", os.getenv("AI_SERVICE_PORT", "9000")))
 ESP32_PORT   = int(os.getenv("ESP32_PORT", "9999"))
 ESP32_HOST   = os.getenv("ESP32_HOST", "0.0.0.0")
 
