@@ -1,46 +1,56 @@
 import os
+import httpx
 import uvicorn
-import firebase_admin
-from firebase_admin import firestore
-from fastapi import FastAPI, Request, HTTPException
-import requests
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+AI_SERVICE_URL = "https://eeg-final-test-2-production.up.railway.app"
 
 app = FastAPI()
 
-# Initialize Firebase Admin SDK
-if not firebase_admin._apps:
-    firebase_admin.initialize_app()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-db = firestore.client()
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL")
-
-@app.post("/eeg/ingest")
-async def ingest_eeg(request: Request):
+@app.post("/eeg")
+async def receive_eeg(request: Request):
+    body = await request.body()
+    payload = body.decode().strip()
+    if not payload:
+        return {"ok": True, "samples": 0}
+    lines = [l.strip() for l in payload.split('\n') if l.strip()]
     try:
-        # Read incoming raw body
-        body = await request.body()
-        data_line = body.decode().strip()
-        
-        # 1. Update system status in Firestore
-        db.collection("systems").document("current_status").set({
-            "status": "online",
-            "last_active": firestore.SERVER_TIMESTAMP
-        }, merge=True)
-        
-        # 2. Forward single-channel data to AI Service
-        if AI_SERVICE_URL:
-            requests.post(
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
                 f"{AI_SERVICE_URL}/eeg/ingest",
-                data=data_line,
+                content=payload,
                 headers={"Content-Type": "text/plain"},
-                timeout=3
+                timeout=3.0
             )
-            
-        return {"status": "success", "message": "Data processed"}
-        
+            if r.status_code == 200:
+                print(f"[Relay] Forwarded {len(lines)} samples to Railway")
+            else:
+                print(f"[Relay] Railway returned {r.status_code}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Relay] Error: {e}")
+    return {"ok": True, "samples": len(lines)}
+
+@app.get("/status")
+async def relay_status():
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.get(f"{AI_SERVICE_URL}/health", timeout=5.0)
+            return {"relay": "online", "railway_ai": "reachable", "health": r.json()}
+    except Exception as e:
+        return {"relay": "online", "railway_ai": "unreachable", "error": str(e)}
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print("=" * 55)
+    print("  NeuroGuard Relay")
+    print(f"  ESP32 -> http://<your-pc-ip>:8888/eeg")
+    print(f"  -> {AI_SERVICE_URL}/eeg/ingest")
+    print("=" * 55)
+    uvicorn.run(app, host="0.0.0.0", port=8888)
