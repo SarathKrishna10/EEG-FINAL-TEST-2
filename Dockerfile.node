@@ -1,0 +1,30 @@
+# Node.js backend for NeuroGuard EEG (EEG-FINAL-TEST-2 service on Railway).
+# Used INSTEAD of Nixpacks auto-detection so the Python service-root deploy
+# continues to be unaffected.
+
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /app
+
+# Install deps first for better layer caching
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# ─── Runtime stage ───────────────────────────────────────────────────────────
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# Bring built artifacts and runtime deps from the builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+ENV NODE_ENV=production
+EXPOSE 5000
+
+CMD ["node", "dist/index.cjs"]
