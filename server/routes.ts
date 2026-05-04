@@ -6,7 +6,7 @@ import { z } from "zod";
 import axios from "axios";
 
 // ─── Service URLs ─────────────────────────────────────────────────────────────
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:9000";
+const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || "http://127.0.0.1:9000").replace(/\/+$/, "");
 
 export async function registerRoutes(
   httpServer: Server,
@@ -232,15 +232,20 @@ export async function registerRoutes(
 
     req.on("end", async () => {
       try {
-        await axios.post(
+        const r = await axios.post(
           `${AI_SERVICE_URL}/eeg/ingest`,
           body,
           {
             headers: { "Content-Type": "text/plain" },
-            timeout: 3000,
+            timeout: 10000,
           }
         );
-        res.json({ ok: true, samples: body.trim().split('\n').length });
+        const sent = body.trim().split('\n').filter(Boolean).length;
+        const accepted = (r.data && typeof r.data.accepted === "number") ? r.data.accepted : undefined;
+        if (accepted !== undefined && accepted < sent) {
+          console.warn(`[EEG INGEST] AI accepted ${accepted}/${sent} lines — parser may be rejecting samples`);
+        }
+        res.json({ ok: true, sent, accepted });
       } catch (err) {
         // Don't fail ESP32 — just log and return ok
         console.error("[EEG INGEST] AI service error:", err);

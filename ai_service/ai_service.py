@@ -117,9 +117,15 @@ def process_eeg_line(line: str) -> bool:
     """
     Normalize a raw EEG sample string and push it into the unified buffer.
 
-    Expected format: a single numeric string representing a raw ADC value
-    (e.g. "2150").  The value is normalized to the range ±2.0 to match the
-    range used during model training:  val = (raw - 2048) / 1000.0
+    Expected format (preferred): two comma-separated numeric ADC values per
+    line representing FP1 and FP2 — e.g. "2150,2200" — matching the ESP32
+    firmware's plain-text batch payload.
+
+    Legacy format: a single numeric value (e.g. "2150"); both channels are
+    populated with the same value for backwards compatibility.
+
+    Each ADC value is normalised to the range ±2.0 to match the range used
+    during model training:  val = (raw - 2048) / 1000.0
 
     Returns True if the sample was accepted, False if the line was not a
     valid number.
@@ -128,11 +134,17 @@ def process_eeg_line(line: str) -> bool:
     if not line:
         return False
     try:
-        val = (float(line) - 2048) / 1000.0
+        parts = line.split(",")
+        if len(parts) >= 2:
+            fp1 = (float(parts[0]) - 2048) / 1000.0
+            fp2 = (float(parts[1]) - 2048) / 1000.0
+        else:
+            v = (float(parts[0]) - 2048) / 1000.0
+            fp1 = fp2 = v
         with buffer_lock:
-            unified_buffer.append((val, val))
+            unified_buffer.append((fp1, fp2))
         return True
-    except ValueError:
+    except (ValueError, IndexError):
         return False
 
 
