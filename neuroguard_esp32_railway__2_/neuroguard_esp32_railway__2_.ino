@@ -5,7 +5,7 @@
 // ── EDIT THESE ───────────────────────────────────────────────
 const char* ssid      = "Sarath's S20 FE";
 const char* password  = "12345678";
-const char* serverUrl = "https://eeg-final-test-2-production.up.railway.app/eeg/ingest";
+const char* serverUrl = "https://eeg-final-test-2-production-e9ea.up.railway.app/eeg/ingest";
 // ─────────────────────────────────────────────────────────────
 
 // --- Pins ---
@@ -55,8 +55,18 @@ void connectWiFi() {
 
   digitalWrite(LED_PIN, LOW);
   wifiClient.setInsecure(); // Skip SSL verification for Railway HTTPS
+
+  // Force Google + Cloudflare DNS — local ISP/hotspot DNS often fails
+  // to resolve newly-generated Railway subdomains for hours.
+  IPAddress dns1(8, 8, 8, 8);
+  IPAddress dns2(1, 1, 1, 1);
+  WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), dns1, dns2);
+
   Serial.println("\n[WiFi] Connected!");
   Serial.printf("[WiFi] ESP32 IP : %s\n", WiFi.localIP().toString().c_str());
+  Serial.printf("[WiFi] Gateway  : %s\n", WiFi.gatewayIP().toString().c_str());
+  Serial.printf("[WiFi] DNS1     : %s\n", WiFi.dnsIP(0).toString().c_str());
+  Serial.printf("[WiFi] DNS2     : %s\n", WiFi.dnsIP(1).toString().c_str());
   Serial.printf("[WiFi] RSSI     : %d dBm\n", WiFi.RSSI());
   Serial.printf("[WiFi] Server   : %s\n", serverUrl);
   blink(3);

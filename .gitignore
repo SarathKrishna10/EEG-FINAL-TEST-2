@@ -3,5 +3,6 @@ venv/
 __pycache__/
 node_modules/
 *.h5
+!ai_service/kaggle_drcam_model.h5
 firebase-key.json
 ai_service/firebase-key.json
