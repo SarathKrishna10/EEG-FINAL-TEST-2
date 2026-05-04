@@ -54,10 +54,39 @@ _FIREBASE_KEY_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "firebase-key.json"
 )
 _FIREBASE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET", "eeg-c0f64.firebasestorage.app")
+_FIREBASE_KEY_JSON = os.getenv("FIREBASE_KEY_JSON")  # raw JSON string, used in Railway
+
+def _load_firebase_credentials():
+    """
+    Load Firebase service-account credentials from one of three sources, in
+    order of preference:
+
+      1. FIREBASE_KEY_JSON env var (raw JSON string) — used in Railway / cloud
+      2. GOOGLE_APPLICATION_CREDENTIALS env var (path to a key file) — standard GCP
+      3. firebase-key.json sitting one directory above this file — local dev
+
+    Returns a credentials.Certificate instance, or raises FileNotFoundError
+    if none of the sources resolve.
+    """
+    if _FIREBASE_KEY_JSON:
+        import json
+        try:
+            return credentials.Certificate(json.loads(_FIREBASE_KEY_JSON))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"FIREBASE_KEY_JSON env var is not valid JSON: {e}")
+    gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if gac and os.path.isfile(gac):
+        return credentials.Certificate(gac)
+    if os.path.isfile(_FIREBASE_KEY_PATH):
+        return credentials.Certificate(_FIREBASE_KEY_PATH)
+    raise FileNotFoundError(
+        "No Firebase credentials found. Set FIREBASE_KEY_JSON env var "
+        "(raw JSON) or place firebase-key.json next to the project root."
+    )
 
 try:
     if not firebase_admin._apps:
-        _cred = credentials.Certificate(_FIREBASE_KEY_PATH)
+        _cred = _load_firebase_credentials()
         firebase_admin.initialize_app(_cred, {"storageBucket": _FIREBASE_BUCKET})
     db     = firestore.client()       # Firestore client
     bucket = storage.bucket()          # Firebase Storage bucket
