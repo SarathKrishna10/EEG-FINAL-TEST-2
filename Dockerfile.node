@@ -12,6 +12,8 @@ RUN npm ci || npm install
 
 # Copy source and build
 COPY . .
+# Skip the heavy Vite client bundle — Vercel serves the React frontend.
+ENV SKIP_CLIENT_BUILD=1
 RUN npm run build
 
 # ─── Runtime stage ───────────────────────────────────────────────────────────

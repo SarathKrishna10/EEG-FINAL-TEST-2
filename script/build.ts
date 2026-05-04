@@ -35,8 +35,15 @@ const allowlist = [
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
-  console.log("building client...");
-  await viteBuild();
+  // Set SKIP_CLIENT_BUILD=1 to skip the Vite frontend bundle.
+  // Used in cloud deploys where the React client is served separately
+  // (e.g. Vercel) and only the Express API needs to be packaged.
+  if (process.env.SKIP_CLIENT_BUILD) {
+    console.log("SKIP_CLIENT_BUILD=1 — skipping client (vite) build");
+  } else {
+    console.log("building client...");
+    await viteBuild();
+  }
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
