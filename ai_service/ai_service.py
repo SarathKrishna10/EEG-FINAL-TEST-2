@@ -112,9 +112,9 @@ ESP32_HOST   = os.getenv("ESP32_HOST", "0.0.0.0")
 
 # ─── Data Pipeline Config ─────────────────────────────────────────────────────
 SAMPLE_RATE    = 128
-WINDOW_SECONDS = 45
-STEP_SECONDS   = 5
-WINDOW_SIZE    = SAMPLE_RATE * WINDOW_SECONDS # 5760
+WINDOW_SECONDS = 5
+STEP_SECONDS   = 2
+WINDOW_SIZE    = SAMPLE_RATE * WINDOW_SECONDS # 640
 STRIDE         = 64  # 50% Overlap for 128-sample window
 
 # Filtering Config
@@ -324,77 +324,86 @@ def validate_signal(data: np.ndarray) -> tuple[bool, str]:
 
 def run_inference_worker():
     """Stabilized, overlapping window inference background worker."""
-    global current_verdict, current_score, current_confidence, signal_status, last_inference_ts
+    global current_verdict, current_score, current_confidence
+    global signal_status, last_inference_ts
+
     import time
     log.info("Starting Production EEG Inference Worker")
-    
+
     while True:
         time.sleep(1.0)
+
         with buffer_lock:
             if len(unified_buffer) < WINDOW_SIZE:
-                signal_status = f"BUFFERING ({int(len(unified_buffer)/WINDOW_SIZE*100)}%)"
+                percent = int(len(unified_buffer) / WINDOW_SIZE * 100)
+                signal_status = f"BUFFERING ({percent}%)"
+                log.info(f"[BUFFER] {len(unified_buffer)}/{WINDOW_SIZE} | {signal_status}")
                 continue
-            
+
             if time.time() - last_inference_ts < (STEP_SECONDS - 0.5):
                 continue
-                
-            # 1. Grab 45s raw data
-            raw_window = np.array(list(unified_buffer), dtype=np.float32) # (5760, 2)
-            
-        if model_loaded and model:
-            try:
-                # 2. Pre-processing: Filter
-                filtered_window = apply_eeg_filter(raw_window)
-                
-                # 3. Validation
-                is_valid, status = validate_signal(filtered_window)
-                signal_status = status
-                if not is_valid:
-                    current_verdict = "UNSTABLE"
-                    continue
-                
-                # 4. Overlapping Inference (stride=64, window=128)
-                chunk_size = model.input_shape[1] # 128
-                num_windows = (len(filtered_window) - chunk_size) // STRIDE + 1
-                
-                window_scores = []
-                window_weights = []
-                
-                for j in range(num_windows):
-                    start = j * STRIDE
-                    end = start + chunk_size
-                    chunk = filtered_window[start:end]
-                    
-                    # Compute weight via signal energy (std) - cleaner signal = higher weight
-                    # Simple weight: 1.0 / (1.0 + std_variance)
-                    q_weight = 1.0 / (1.0 + np.var(chunk))
-                    
-                    input_arr = chunk.reshape(1, chunk_size, 2)
-                    pred = model.predict(input_arr, verbose=0)
-                    score = float(pred[0][0])
-                    
-                    window_scores.append(score)
-                    window_weights.append(q_weight)
-                
-                # 5. Weighted aggregation for temporal stability
-                if sum(window_weights) > 0:
-                    w_avg = np.average(window_scores, weights=window_weights)
-                else:
-                    w_avg = np.mean(window_scores)
-                
-                # 6. Confidence: Inverse of variance across window segments
-                # Higher variance = lower confidence in the unified verdict
-                pred_variance = np.var(window_scores)
-                confidence = max(0.0, 1.0 - (pred_variance * 5.0)) # Scaled
-                
-                current_score = float(w_avg)
-                current_confidence = float(confidence)
-                current_verdict = "HIGH RISK" if w_avg >= 0.5 else "NORMAL"
-                last_inference_ts = time.time()
-                
-                log.info(f"[ANALYSIS] Verdict: {current_verdict} | Score: {w_avg:.2f} | Conf: {confidence:.0%}")
-            except Exception as e:
-                log.error(f"Inference error: {e}")
+
+            raw_window = np.array(list(unified_buffer), dtype=np.float32)
+
+        if not model_loaded or model is None:
+            log.warning("Model not loaded yet.")
+            continue
+
+        try:
+            filtered_window = apply_eeg_filter(raw_window)
+
+            is_valid, status = validate_signal(filtered_window)
+            signal_status = status
+
+            if not is_valid:
+                current_verdict = "UNSTABLE"
+                log.warning(f"[VALIDATION FAILED] {status}")
+                continue
+
+            chunk_size = model.input_shape[1]
+            num_windows = (len(filtered_window) - chunk_size) // STRIDE + 1
+
+            window_scores = []
+            window_weights = []
+
+            for j in range(num_windows):
+                start = j * STRIDE
+                end = start + chunk_size
+
+                chunk = filtered_window[start:end]
+
+                q_weight = 1.0 / (1.0 + np.var(chunk))
+
+                input_arr = chunk.reshape(1, chunk_size, 2)
+
+                pred = model.predict(input_arr, verbose=0)
+                score = float(pred[0][0])
+
+                window_scores.append(score)
+                window_weights.append(q_weight)
+
+            if sum(window_weights) > 0:
+                w_avg = np.average(window_scores, weights=window_weights)
+            else:
+                w_avg = np.mean(window_scores)
+
+            pred_variance = np.var(window_scores)
+            confidence = max(0.0, 1.0 - (pred_variance * 5.0))
+
+            current_score = float(w_avg)
+            current_confidence = float(confidence)
+            current_verdict = "HIGH RISK" if w_avg >= 0.5 else "NORMAL"
+
+            last_inference_ts = time.time()
+
+            log.info(
+                f"[ANALYSIS] Verdict: {current_verdict} | "
+                f"Score: {w_avg:.2f} | "
+                f"Conf: {confidence:.0%}"
+            )
+
+        except Exception as e:
+            log.error(f"Inference error: {e}")
 
 def load_model():
     """Load the TensorFlow/Keras model from disk. Safe to call at startup."""
