@@ -735,12 +735,12 @@ def predict(request: PredictRequest):
                 # 1. Build CSV in memory, write to a temp file, upload to Firebase Storage
                 csv_io = io.StringIO()
                 writer = csv.writer(csv_io)
-                writer.writerow(["timestamp_ms", "Fp1_voltage", "Fp2_voltage"])
-                for i, row in enumerate(data_arr):
-                    writer.writerow([round(i * (1000 / 128), 2), round(row[0], 4), round(row[1], 4)])
+                writer.writerow(["Fp1", "Fp2"])
+                for row in data_arr:
+                    writer.writerow([round(row[0], 4), round(row[1], 4)])
                 csv_bytes = csv_io.getvalue().encode("utf-8")
 
-                csv_filename = f"eeg-recordings/{base_name}.csv"
+                csv_filename = f"reports/{request.user_id or 'anonymous'}/{base_name}.csv"
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp_csv:
                     tmp_csv.write(csv_bytes)
                     tmp_csv_path = tmp_csv.name
@@ -788,6 +788,7 @@ def predict(request: PredictRequest):
                     "verdict": label,
                     "confidence": score,
                     "signal_status": signal_status,
+                    "csv_url": csv_url,
                 }
                 _ts, doc_ref = db.collection("sessions").add(session_doc)
                 log.info(f"Session saved to Firestore: {doc_ref.id}")

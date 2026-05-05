@@ -121,7 +121,11 @@ export function PatientLookup({ userId }: { userId?: string }) {
                       <td className="px-4 py-4 text-[#92c9bb]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 shrink-0" />
-                          {new Date(session.created_at).toLocaleString()}
+                          {session.created_at?.toDate
+                            ? session.created_at.toDate().toLocaleString()
+                            : session.created_at
+                              ? new Date(session.created_at).toLocaleString()
+                              : "—"}
                         </div>
                       </td>
 

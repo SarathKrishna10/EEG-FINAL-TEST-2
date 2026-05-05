@@ -36,7 +36,7 @@ export interface Session {
   csv_url?: string;
   csv_blob_path?: string;
   heatmap_url?: string;
-  created_at: string;
+  created_at: any;
 }
 
 // ─── Derive badge info from either verdict or mci_probability ────────────────
@@ -110,7 +110,7 @@ export function useLiveSessions(userId?: string): UseLiveSessionsResult {
               csv_url: data.csv_url,
               csv_blob_path: data.csv_blob_path,
               heatmap_url: data.heatmap_url,
-              created_at: data.created_at ?? new Date().toISOString(),
+              created_at: data.created_at ?? null,
             } satisfies Session;
           }
         );
