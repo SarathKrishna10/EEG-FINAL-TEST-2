@@ -775,23 +775,24 @@ def predict(request: PredictRequest):
                     )
                     log.info(f"Heatmap uploaded to Firebase Storage: {png_filename}")
 
-                # 3. Log Session to Firestore
-                if request.user_id:
-                    session_doc = {
-                        "patient_name": request.patient_name,
-                        "verdict": label,
-                        "confidence": score,
-                        "user_id": request.user_id,
-                        "csv_url": csv_url,
-                        "csv_blob_path": csv_filename,
-                        "heatmap_url": heatmap_url,
-                        "created_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                    _ts, doc_ref = db.collection("sessions").add(session_doc)
-                    log.info(f"Session saved to Firestore: {doc_ref.id}")
-
             except Exception as e:
-                log.error(f"Failed during Firebase ops: {e}")
+                log.error(f"Failed during Firebase Storage ops: {e}")
+
+        # ── Save Session Record to Firestore ────────────────────────────────
+        if FIREBASE_OK and db and request.user_id:
+            try:
+                session_doc = {
+                    "user_id": request.user_id,
+                    "patient_name": request.patient_name,
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                    "verdict": label,
+                    "confidence": score,
+                    "signal_status": signal_status,
+                }
+                _ts, doc_ref = db.collection("sessions").add(session_doc)
+                log.info(f"Session saved to Firestore: {doc_ref.id}")
+            except Exception as e:
+                log.error(f"Failed to save session to Firestore: {e}")
 
         return PredictResponse(
             patient_name=request.patient_name,
