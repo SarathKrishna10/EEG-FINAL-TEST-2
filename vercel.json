@@ -1,0 +1,24 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://eeg-final-test-2-production-e9ea.up.railway.app/api/:path*"
+        },
+        {
+            "source": "/diagnosis/:path*",
+            "destination": "https://eeg-final-test-2-production-e9ea.up.railway.app/diagnosis/:path*"
+        },
+        {
+            "source": "/health",
+            "destination": "https://eeg-final-test-2-production-e9ea.up.railway.app/health"
+        },
+        {
+            "source": "/predict/:path*",
+            "destination": "https://eeg-final-test-2-production-e9ea.up.railway.app/predict/:path*"
+        },
+        {
+            "source": "/esp32/:path*",
+            "destination": "https://eeg-final-test-2-production-e9ea.up.railway.app/esp32/:path*"
+        }
+    ]
+}
