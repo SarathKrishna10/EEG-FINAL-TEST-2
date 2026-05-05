@@ -217,7 +217,7 @@ export default function DashboardPage() {
       }, 1000);
     } else if (sessionActive && timeLeft === 0) {
       setSessionActive(false);
-      predict.mutate({ patientName: sessionPatient, features: [], userId: user?.id }, {
+      predict.mutate({ patientName: sessionPatient, features: [], userId: user?.uid }, {
         onSuccess: () => {
           setActiveNav("dashboard"); // Ensure we stay on dashboard to see results
         }
@@ -236,7 +236,7 @@ export default function DashboardPage() {
       triggerDownload();
       // Ensure we don't trigger it 50 times a second if it lingers on 100
       setSessionActive(false);
-      predict.mutate({ patientName: sessionPatient, features: [], userId: user?.id }, {
+      predict.mutate({ patientName: sessionPatient, features: [], userId: user?.uid }, {
         onSuccess: () => setActiveNav("dashboard")
       });
     }
@@ -458,10 +458,10 @@ export default function DashboardPage() {
           {activeNav === "history" && (
             <div className="space-y-6">
               <h2 className="text-3xl font-black tracking-tight">Patient History</h2>
-              <PatientLookup userId={user?.id} />
+              <PatientLookup userId={user?.uid} />
             </div>
           )}
-          {activeNav === "analytics" && <TrendAnalyticsView userId={user?.id} />}
+          {activeNav === "analytics" && <TrendAnalyticsView userId={user?.uid} />}
           {activeNav === "settings" && <SettingsView />}
         </div>
       </main>

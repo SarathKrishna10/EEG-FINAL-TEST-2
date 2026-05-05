@@ -9,9 +9,12 @@ const char* serverUrl = "https://eeg-final-test-2-production-e9ea.up.railway.app
 // ─────────────────────────────────────────────────────────────
 
 // --- Pins ---
+// Single BioAmp EXG Pill on GPIO34 — its output is mirrored to both
+// fp1 and fp2 in the batch (set DUAL_AMP=true if you wire a second Pill).
 const int FP1_PIN = 34;
 const int FP2_PIN = 35;
 const int LED_PIN = 2;
+const bool DUAL_AMP = false;  // false = single Pill mirrored to both channels
 
 // --- Batch config ---
 // Send 32 samples per HTTP request
@@ -129,9 +132,11 @@ void setup() {
 }
 
 void loop() {
-  // Read both EEG channels
-  fp1Batch[batchIdx] = analogRead(FP1_PIN);
-  fp2Batch[batchIdx] = analogRead(FP2_PIN);
+  // Read EEG channels — single-Pill setup mirrors GPIO34 to both columns
+  int fp1Sample = analogRead(FP1_PIN);
+  int fp2Sample = DUAL_AMP ? analogRead(FP2_PIN) : fp1Sample;
+  fp1Batch[batchIdx] = fp1Sample;
+  fp2Batch[batchIdx] = fp2Sample;
   batchIdx++;
   sampleCnt++;
 
