@@ -215,16 +215,9 @@ export default function DashboardPage() {
       timer = setInterval(() => {
         setTimeLeft(prev => prev - 1);
       }, 1000);
-    } else if (sessionActive && timeLeft === 0) {
-      setSessionActive(false);
-      predict.mutate({ patientName: sessionPatient, features: [], userId: user?.uid }, {
-        onSuccess: () => {
-          setActiveNav("dashboard"); // Ensure we stay on dashboard to see results
-        }
-      });
     }
     return () => clearInterval(timer);
-  }, [sessionActive, timeLeft, sessionPatient, user]);
+  }, [sessionActive, timeLeft]);
 
   const triggerDownload = () => {
     window.location.href = `/api/report/download?patientName=${encodeURIComponent(sessionPatient || 'Patient')}`;
