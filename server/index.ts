@@ -18,10 +18,14 @@ declare module "http" {
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 // Allow requests from the deployed Vercel frontend. Set CORS_ORIGIN in your
-// hosting environment (e.g. https://<project>.vercel.app).
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   })
 );
