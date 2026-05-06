@@ -201,9 +201,45 @@ export function PatientLookup({ userId }: { userId?: string }) {
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-[#92c9bb]/50 italic">
-                            No files
-                          </span>
+                          <button
+                            onClick={() => {
+                              const csvContent = [
+                                ["Patient Name", "Verdict", "MCI Probability (%)", "Confidence", "Date"],
+                                [
+                                  session.patient_name,
+                                  session.verdict,
+                                  session.mci_probability.toFixed(1),
+                                  (session.confidence * 100).toFixed(1),
+                                  session.created_at?.toDate
+                                    ? session.created_at.toDate().toLocaleString()
+                                    : session.created_at
+                                      ? new Date(session.created_at).toLocaleString()
+                                      : "N/A",
+                                ],
+                              ]
+                                .map((row) => row.join(","))
+                                .join("\n");
+                              const blob = new Blob([csvContent], { type: "text/csv" });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `${session.patient_name?.replace(/\s+/g, "_") || "session"}_report.csv`;
+                              document.body.appendChild(a);
+                              a.click();
+                              URL.revokeObjectURL(url);
+                              document.body.removeChild(a);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:-translate-y-0.5"
+                            style={{
+                              background: "rgba(19,236,182,0.1)",
+                              color: "#13ecb6",
+                              border: "1px solid rgba(19,236,182,0.3)",
+                            }}
+                            title="Generate and download a CSV report from session data"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download Report
+                          </button>
                         )}
                       </td>
                     </tr>

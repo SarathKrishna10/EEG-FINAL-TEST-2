@@ -178,7 +178,7 @@ export default function DashboardPage() {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [patientNameInput, setPatientNameInput] = useState("");
   const [sessionActive, setSessionActive] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(45);
+
   const [sessionPatient, setSessionPatient] = useState("Patient");
   const [showHelp, setShowHelp] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -209,24 +209,11 @@ export default function DashboardPage() {
   const startSession = useStartSession();
   const predict = usePredict();
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (sessionActive && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [sessionActive, timeLeft]);
 
-  const triggerDownload = () => {
-    window.location.href = `/api/report/download?patientName=${encodeURIComponent(sessionPatient || 'Patient')}`;
-  };
 
   useEffect(() => {
     const progress = Math.round(diagData.buffer_fill * 100);
     if (sessionActive && progress === 100) {
-      triggerDownload();
       // Ensure we don't trigger it 50 times a second if it lingers on 100
       setSessionActive(false);
       predict.mutate({ patientName: sessionPatient, features: [], userId: user?.uid }, {
@@ -241,7 +228,6 @@ export default function DashboardPage() {
     startSession.mutate(patientNameInput.trim(), {
       onSuccess: () => {
         setSessionPatient(patientNameInput.trim());
-        setTimeLeft(45);
         setSessionActive(true);
         setShowSessionModal(false);
         setPatientNameInput("");
@@ -258,27 +244,7 @@ export default function DashboardPage() {
     signOut(auth).then(() => setLocation("/login"));
   };
 
-  const handleDownloadZip = async () => {
-    try {
-      if (!sessionPatient) return;
-      toast({ title: "Preparing Download", description: "Generating NeuroGuard ZIP report..." });
-      const response = await fetch(`/api/report/download?patientName=${encodeURIComponent(sessionPatient)}`);
-      if (!response.ok) throw new Error("Failed to download report");
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `NeuroGuard_Report_${sessionPatient}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast({ title: "Download Started", description: "Your report is successfully downloading." });
-    } catch (err) {
-      toast({ title: "Download Failed", description: "Could not bundle patient ZIP report.", variant: "destructive" });
-    }
-  };
 
   const navItems: { id: NavView; icon: string; label: string }[] = [
     { id: "dashboard", icon: "dashboard", label: "Dashboard" },
@@ -323,9 +289,7 @@ export default function DashboardPage() {
               <Icon name="play_circle" />
               <span>Start Session</span>
             </button>
-            <button className="bg-purple-600 text-white p-3 rounded-lg mt-4 w-full" onClick={handleDownloadZip}>
-              Download NeuroGuard ZIP
-            </button>
+
             <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2 text-red-400 text-xs font-medium rounded-lg hover:bg-red-500/5 transition-all w-full">
               <Icon name="logout" className="text-[20px]" />
               Sign Out
@@ -344,9 +308,9 @@ export default function DashboardPage() {
                   <p className="text-[#92c9bb] text-lg mt-1">{sessionActive ? "Live diagnostic session in progress." : "Select a patient to begin analysis."}</p>
                 </div>
                 {sessionActive && (
-                  <button onClick={handleEndSession} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#23483f] text-white">
+                  <button onClick={handleEndSession} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#23483f] text-white hover:bg-[#2d5a4f]">
                     <Icon name="stop_circle" className="text-[20px]" />
-                    End Session ({timeLeft}s)
+                    End Session
                   </button>
                 )}
               </div>
@@ -432,14 +396,7 @@ export default function DashboardPage() {
                             <span className="material-symbols-outlined text-[18px]">download</span>
                             Download CSV
                           </a>
-                        ) : (
-                          <button
-                            onClick={handleDownloadZip}
-                            className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#13ecb6] text-[#0b1714] hover:bg-white hover:scale-[1.02] shadow-[0_0_15px_rgba(19,236,182,0.2)]"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">download</span> Download Report (ZIP)
-                          </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}
