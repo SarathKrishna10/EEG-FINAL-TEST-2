@@ -217,7 +217,30 @@ export default function DashboardPage() {
       // Ensure we don't trigger it 50 times a second if it lingers on 100
       setSessionActive(false);
       predict.mutate({ patientName: sessionPatient, features: [], userId: user?.uid }, {
-        onSuccess: () => setActiveNav("dashboard")
+        onSuccess: (data) => {
+          setActiveNav("dashboard");
+          
+          // Auto-download the stored CSV and Heatmap files upon successful prediction
+          if (data.csv_url) {
+            const a = document.createElement("a");
+            a.href = data.csv_url;
+            a.download = "true";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+          if (data.heatmap_url) {
+            setTimeout(() => {
+              const a = document.createElement("a");
+              a.href = data.heatmap_url;
+              a.download = "true";
+              a.target = "_blank";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }, 600); // slight delay to prevent browser blocking multiple downloads
+          }
+        }
       });
     }
   }, [diagData.buffer_fill, sessionActive]);
@@ -242,6 +265,28 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     signOut(auth).then(() => setLocation("/login"));
+  };
+
+  const handleDownloadZip = async () => {
+    try {
+      if (!sessionPatient) return;
+      toast({ title: "Preparing Download", description: "Generating NeuroGuard ZIP report..." });
+      const response = await fetch(`/api/report/download?patientName=${encodeURIComponent(sessionPatient)}`);
+      if (!response.ok) throw new Error("Failed to download report");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `NeuroGuard_Report_${sessionPatient}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({ title: "Download Started", description: "Your report is successfully downloading." });
+    } catch (err) {
+      toast({ title: "Download Failed", description: "Could not bundle patient ZIP report.", variant: "destructive" });
+    }
   };
 
 
@@ -405,7 +450,7 @@ export default function DashboardPage() {
 
                         {/* Download buttons */}
                         <div className="flex gap-2">
-                          {predict.data.csv_url && (
+                          {predict.data.csv_url ? (
                             <a
                               href={predict.data.csv_url}
                               download
@@ -414,6 +459,13 @@ export default function DashboardPage() {
                               <span className="material-symbols-outlined text-[18px]">download</span>
                               Download CSV
                             </a>
+                          ) : (
+                            <button
+                              onClick={handleDownloadZip}
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#13ecb6] text-[#0b1714] hover:bg-white hover:scale-[1.02] shadow-[0_0_15px_rgba(19,236,182,0.2)]"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">download</span> Download Report (ZIP)
+                            </button>
                           )}
                           {predict.data.heatmap_url && (
                             <a
