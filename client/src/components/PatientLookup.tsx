@@ -164,7 +164,7 @@ export function PatientLookup({ userId }: { userId?: string }) {
 
                       {/* Data export */}
                       <td className="px-4 py-4 text-right">
-                        {session.csv_url || session.heatmap_url ? (
+                        {session.csv_url || session.heatmap_url || session.report_url ? (
                           <div className="flex items-center justify-end gap-2">
                             {session.heatmap_url && (
                               <a
@@ -181,6 +181,22 @@ export function PatientLookup({ userId }: { userId?: string }) {
                               >
                                 <FileAudio className="w-3.5 h-3.5" />
                                 Spectrogram
+                              </a>
+                            )}
+                            {session.report_url && (
+                              <a
+                                href={session.report_url}
+                                download
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:-translate-y-0.5"
+                                style={{
+                                  background: "rgba(19,236,182,0.1)",
+                                  color: "#13ecb6",
+                                  border: "1px solid rgba(19,236,182,0.3)",
+                                }}
+                                title="Download Full Report"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Full Report
                               </a>
                             )}
                             {session.csv_url && (
