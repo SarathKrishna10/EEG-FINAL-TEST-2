@@ -789,6 +789,7 @@ def predict(request: PredictRequest):
                     "confidence": score,
                     "signal_status": signal_status,
                     "csv_url": csv_url,
+                    "heatmap_url": heatmap_url,
                 }
                 _ts, doc_ref = db.collection("sessions").add(session_doc)
                 log.info(f"Session saved to Firestore: {doc_ref.id}")

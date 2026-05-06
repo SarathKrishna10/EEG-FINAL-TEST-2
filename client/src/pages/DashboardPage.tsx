@@ -386,17 +386,49 @@ export default function DashboardPage() {
                             {predict.data.mci_probability?.toFixed(1) || (predict.data.confidence * 100).toFixed(1)}%
                           </span>
                         </div>
-                        {/* Download CSV — prefer signed URL from Firebase Storage, fallback to ZIP */}
-                        {predict.data.csv_url ? (
-                          <a
-                            href={predict.data.csv_url}
-                            download
-                            className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#13ecb6] text-[#0b1714] hover:bg-white hover:scale-[1.02] shadow-[0_0_15px_rgba(19,236,182,0.2)]"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">download</span>
-                            Download CSV
-                          </a>
-                        ) : null}
+
+                        {/* Spectral Heatmap Image */}
+                        {predict.data.heatmap_url && (
+                          <div className="rounded-lg overflow-hidden border border-white/5">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-black/20">
+                              <span className="material-symbols-outlined text-[16px] text-[#13ecb6]">image</span>
+                              <span className="text-[10px] font-bold text-[#92c9bb] uppercase tracking-wider">EEG Spectral Heatmap</span>
+                            </div>
+                            <img
+                              src={predict.data.heatmap_url}
+                              alt="EEG Spectral Heatmap"
+                              className="w-full h-auto"
+                              style={{ background: "#10221d" }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Download buttons */}
+                        <div className="flex gap-2">
+                          {predict.data.csv_url && (
+                            <a
+                              href={predict.data.csv_url}
+                              download
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all bg-[#13ecb6] text-[#0b1714] hover:bg-white hover:scale-[1.02] shadow-[0_0_15px_rgba(19,236,182,0.2)]"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">download</span>
+                              Download CSV
+                            </a>
+                          )}
+                          {predict.data.heatmap_url && (
+                            <a
+                              href={predict.data.heatmap_url}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all hover:scale-[1.02]"
+                              style={{ background: "rgba(19,236,182,0.1)", color: "#13ecb6", border: "1px solid rgba(19,236,182,0.3)" }}
+                            >
+                              <span className="material-symbols-outlined text-[18px]">image</span>
+                              Heatmap
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
