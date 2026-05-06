@@ -726,7 +726,24 @@ def predict(request: PredictRequest):
             log.error(f"Failed to generate heatmap: {e}")
             heatmap_bytes = None
 
-        # ── Firebase Storage Uploads & Firestore Logging ────────────────────
+        # ── Save Initial Session Record to Firestore ────────────────────────
+        doc_ref = None
+        if FIREBASE_OK and db and request.user_id:
+            try:
+                session_doc = {
+                    "user_id": request.user_id,
+                    "patient_name": request.patient_name,
+                    "created_at": firestore.SERVER_TIMESTAMP,
+                    "verdict": label,
+                    "confidence": score,
+                    "signal_status": signal_status,
+                }
+                _ts, doc_ref = db.collection("sessions").add(session_doc)
+                log.info(f"Initial session saved to Firestore: {doc_ref.id}")
+            except Exception as e:
+                log.error(f"Failed to save initial session to Firestore: {e}")
+
+        # ── Firebase Storage Uploads ────────────────────
         csv_url = None
         if FIREBASE_OK and db and bucket:
             try:
@@ -778,23 +795,19 @@ def predict(request: PredictRequest):
             except Exception as e:
                 log.error(f"Failed during Firebase Storage ops: {e}")
 
-        # ── Save Session Record to Firestore ────────────────────────────────
-        if FIREBASE_OK and db and request.user_id:
+        # ── Update Session Record with Artifact URLs ────────────────────────
+        if doc_ref and (csv_url or heatmap_url):
             try:
-                session_doc = {
-                    "user_id": request.user_id,
-                    "patient_name": request.patient_name,
-                    "created_at": firestore.SERVER_TIMESTAMP,
-                    "verdict": label,
-                    "confidence": score,
-                    "signal_status": signal_status,
-                    "csv_url": csv_url,
-                    "heatmap_url": heatmap_url,
-                }
-                _ts, doc_ref = db.collection("sessions").add(session_doc)
-                log.info(f"Session saved to Firestore: {doc_ref.id}")
+                update_data = {}
+                if csv_url:
+                    update_data["csv_url"] = csv_url
+                if heatmap_url:
+                    update_data["heatmap_url"] = heatmap_url
+                
+                doc_ref.update(update_data)
+                log.info(f"Session {doc_ref.id} updated with file URLs.")
             except Exception as e:
-                log.error(f"Failed to save session to Firestore: {e}")
+                log.error(f"Failed to update session {doc_ref.id} with file URLs: {e}")
 
         return PredictResponse(
             patient_name=request.patient_name,
