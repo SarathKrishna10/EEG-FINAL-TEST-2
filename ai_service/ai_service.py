@@ -735,9 +735,9 @@ def predict(request: PredictRequest):
                 # 1. Build CSV in memory, write to a temp file, upload to Firebase Storage
                 csv_io = io.StringIO()
                 writer = csv.writer(csv_io)
-                writer.writerow(["Fp1", "Fp2"])
-                for row in data_arr:
-                    writer.writerow([round(row[0], 4), round(row[1], 4)])
+                writer.writerow(["timestamp_ms", "fp1", "fp2"])
+                for i, row in enumerate(data_arr):
+                    writer.writerow([round(i * (1000 / 128), 2), round(row[0], 4), round(row[1], 4)])
                 csv_bytes = csv_io.getvalue().encode("utf-8")
 
                 csv_filename = f"reports/{request.user_id or 'anonymous'}/{base_name}.csv"
