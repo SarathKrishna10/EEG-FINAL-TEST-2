@@ -766,12 +766,9 @@ def predict(request: PredictRequest):
                 csv_blob.upload_from_filename(tmp_csv_path, content_type="text/csv")
                 os.unlink(tmp_csv_path)
 
-                # Generate a long-lived signed URL (7 days)
-                csv_url = csv_blob.generate_signed_url(
-                    expiration=timedelta(days=7),
-                    method="GET",
-                    version="v4",
-                )
+                # Get public download URL
+                csv_blob.make_public()
+                csv_url = csv_blob.public_url
                 log.info(f"CSV uploaded to Firebase Storage: {csv_filename}")
 
                 # 2. Upload Heatmap PNG
@@ -785,11 +782,8 @@ def predict(request: PredictRequest):
                     png_blob.upload_from_filename(tmp_png_path, content_type="image/png")
                     os.unlink(tmp_png_path)
 
-                    heatmap_url = png_blob.generate_signed_url(
-                        expiration=timedelta(days=7),
-                        method="GET",
-                        version="v4",
-                    )
+                    png_blob.make_public()
+                    heatmap_url = png_blob.public_url
                     log.info(f"Heatmap uploaded to Firebase Storage: {png_filename}")
 
             except Exception as e:
